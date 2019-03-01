@@ -7,8 +7,8 @@ function mklink { cmd /c mklink $args }
 
 function Move-Files {
     [CmdletBinding(
-    SupportsShouldProcess = $true,
-    ConfirmImpact = "Medium"
+    SupportsShouldProcess = $true
+    #ConfirmImpact = "Medium"
     )]
     Param (
         [Parameter(Mandatory=$true, Position=0)]
@@ -22,7 +22,10 @@ function Move-Files {
     if($PSCmdLet.ShouldProcess("$from -> $to ")) {
         Write-Host "Doing!"
         $dirPath = [System.IO.Path]::GetDirectoryName($to)
-        New-Item -ItemType Directory -Force -Path $dirPath
+        if([System.IO.Directory]::Exists($dirPath)) {
+        } else {
+            New-Item -ItemType Directory -Force -Path $dirPath
+        }
         $command = "mklink /H $to $from"
         Write-Host $command
         cmd /c $command
