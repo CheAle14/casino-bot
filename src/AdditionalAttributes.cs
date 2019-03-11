@@ -41,6 +41,11 @@ namespace DiscordBot
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
             var usr = TheGrandCodingGuild.GetUser(context.User.Id);
+            if(usr == null)
+            {
+                // they arent even in the guild
+                return Task.FromResult(PreconditionResult.FromError("Not in Guild - no permissions"));
+            }
             var tgcuser = Casino.FourAcesCasino.GetTGCUser(usr);
             string extraExplaination = "\r\n";
             if(tgcuser.Permissions.HasFlag(perm))
@@ -51,7 +56,7 @@ namespace DiscordBot
                     if(tgcuser.Blocked_Nickname_By != 0)
                     {
                         var blockedBy = TheGrandCodingGuild.GetUser(tgcuser.Blocked_Nickname_By);
-                        extraExplaination += $"You are blocked from doing that action, contact " + (blockedBy?.Nickname ?? "an admin");
+                        extraExplaination += $"You are blocked from doing that action, contact an admin";
                         secondCheck = false;
                     }
                 }

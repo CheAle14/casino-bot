@@ -33,7 +33,7 @@ namespace DiscordBot
         public static DiscordSocketClient _discord_;
         public static CommandService _commands;
 
-        public IConfigurationRoot Configuration { get; set; }
+        public static IConfigurationRoot Configuration { get; set; }
 
         public static void Main(string[] args)
         {
@@ -111,6 +111,7 @@ namespace DiscordBot
             provider.GetRequiredService<Services.GithubService>();
             provider.GetRequiredService<Services.PasswordService>();
             provider.GetRequiredService<Permissions.PermissionsService>();
+            provider.GetRequiredService<Services.MutingService>();
             Preferences.LoadSettings();
             await provider.GetRequiredService<StartupService>().StartAsync(provider);       // Start the startup service
             ReadConsoleInput();
@@ -137,6 +138,7 @@ namespace DiscordBot
             .AddSingleton<Services.GithubService>()
             .AddSingleton<Services.PasswordService>()
             .AddSingleton<Permissions.PermissionsService>()
+            .AddSingleton<Services.MutingService>()
             .AddSingleton<Random>()                 // Add random to the collection
             .AddSingleton(Configuration)           // Add the configuration to the collection
             .AddSingleton<InteractiveService>();
