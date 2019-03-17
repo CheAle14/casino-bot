@@ -96,7 +96,7 @@ namespace DiscordBot.Permissions
 
         public bool HasPerms(Permission testPerm, PermDivisionStatus status, Casino.Division division)
         {
-            if (testPerm.Division != "")
+            if (testPerm.Division != null)
             {
                 if(status == PermDivisionStatus.NoDivision)
                 {
@@ -247,7 +247,7 @@ namespace DiscordBot.Permissions
 
             Casino.Division contextDivision = null;
             if (DivisionStatus != PermDivisionStatus.NoDivision)
-                contextDivision = Modules.DivisionModule.GetDivisionFromContext(context);
+                contextDivision = Modules.DivisionModule.GetDivisionFromContext(context, command);
 
             foreach (var perm in Permissions)
             {

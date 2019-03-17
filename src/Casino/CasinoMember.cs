@@ -21,7 +21,10 @@ namespace Casino
 
         public virtual string Name => User.Nickname ?? User.Username;
 
-        public bool IsEntitledWage => !(CurrentAudit.TotalValue > FourAcesCasino.MaximumAmountForWages || CurrentAudit.TotalValue > (FourAcesCasino.FourAcesMember.CurrentAudit.TotalValue * FourAcesCasino.MaximumPercentageOfCasinoForWages));
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string WikiAccount;
+
+        public bool IsEntitledWage => CurrentAudit != null && !(CurrentAudit.TotalValue > FourAcesCasino.MaximumAmountForWages || CurrentAudit.TotalValue > (FourAcesCasino.FourAcesMember.CurrentAudit.TotalValue * FourAcesCasino.MaximumPercentageOfCasinoForWages));
 
         public List<Permission> Permissions = new List<Permission>();
         public Embed DisplayPermissions(Division onlyForDivision = null)

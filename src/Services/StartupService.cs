@@ -17,6 +17,7 @@ using DiscordBot.Modules;
 using Casino;
 using System.Threading;
 using Discord.Rest;
+using DiscordBot.Attributes;
 
 namespace DiscordBot
 {
@@ -48,14 +49,14 @@ namespace DiscordBot
         public async Task Ready()
         {
             CasinoGuild = _discord.GetGuild(402839443813302272);
-            StatusGuild = _discord.GetGuild(420240046428258304);
+            TestingGuild = _discord.GetGuild(420240046428258304);
             TheGrandCodingGuild = _discord.GetGuild(365230804734967840);
             LoggingGuild = _discord.GetGuild(508229402325286912);
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), ServiceProvider);     // Load commands and modules into the command service
 
             Services.GithubService.Client.RequestMade += GithubClient_RequestMade;
 
-            foreach (var g in new SocketGuild[] { CasinoGuild, StatusGuild, TheGrandCodingGuild})
+            foreach (var g in new SocketGuild[] { CasinoGuild, TestingGuild, TheGrandCodingGuild})
             {
                 try
                 {

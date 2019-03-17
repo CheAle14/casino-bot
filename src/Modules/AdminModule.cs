@@ -8,6 +8,7 @@ using Casino;
 using static DiscordBot.Program;
 using System.Threading.Tasks;
 using System.Linq;
+using DiscordBot.Attributes;
 
 namespace DiscordBot.Modules
 {

@@ -20,7 +20,7 @@ namespace DiscordBot.Services
     {
         private readonly DiscordSocketClient _discord;
         private readonly CommandService _commands;
-        private readonly IConfigurationRoot _config;
+        private static IConfigurationRoot _config;
         private readonly IServiceProvider _provider;
 
         public static GithubDLL.GithubClient Client;
@@ -40,14 +40,13 @@ namespace DiscordBot.Services
         };
             
 
-        static string _auth;
         static string AuthToken
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(_auth))
-                    _auth = File.ReadAllText(Program.JOINPATH(Program.MAIN_PATH, "tgc-bot.token"));
-                return _auth;
+                if (System.IO.File.Exists("tgc-bot.token"))
+                    File.Delete("tgc-bot.token");
+                return _config["tokens:tgc-github"];
             }
         }
         public const string RepoRegex = @"(?<=repos)\/.*\/.*";

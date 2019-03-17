@@ -94,6 +94,8 @@ namespace DiscordBot
             }
             if (DEBUG_DOWNLOAD_SAVE_FILE)
             { // Get & load save file via SFTP
+                LogMsg("We would download the save file, are you sure?", LogSeverity.Warning, "Download");
+                Console.ReadKey(); // allow for us to close.
                 GetSaveFile();
             }
             await RunAsync();
@@ -112,9 +114,10 @@ namespace DiscordBot
             provider.GetRequiredService<Services.PasswordService>();
             provider.GetRequiredService<Permissions.PermissionsService>();
             provider.GetRequiredService<Services.MutingService>();
+            provider.GetRequiredService<Services.MediaWikiService>();
             Preferences.LoadSettings();
             await provider.GetRequiredService<StartupService>().StartAsync(provider);       // Start the startup service
-            ReadConsoleInput();
+            await ReadConsoleInput();
         }
 
 
@@ -139,6 +142,7 @@ namespace DiscordBot
             .AddSingleton<Services.PasswordService>()
             .AddSingleton<Permissions.PermissionsService>()
             .AddSingleton<Services.MutingService>()
+            .AddSingleton<Services.MediaWikiService>()
             .AddSingleton<Random>()                 // Add random to the collection
             .AddSingleton(Configuration)           // Add the configuration to the collection
             .AddSingleton<InteractiveService>();

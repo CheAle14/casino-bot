@@ -26,7 +26,7 @@ function Move-Files {
         } else {
             New-Item -ItemType Directory -Force -Path $dirPath
         }
-        $command = "mklink /H $to $from"
+        $command = "mklink /H ""$to"" ""$from"""
         Write-Host $command
         cmd /c $command
     } else {

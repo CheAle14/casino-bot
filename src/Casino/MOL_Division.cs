@@ -12,17 +12,20 @@ namespace Casino
 
         public int LastDayOfTimeSent;
 
-        public LoanInfo SmallLoan = new LoanInfo(LoanType.Small, 25, 100, 0.01, 14)
+        public LoanInfo SmallLoan /*= new LoanInfo(LoanType.Small, 25, 100, 14)
             .WithMaxChips(5000)
             .WithForbidOthers(true)
-            .WithMustCouncilMustApprove(false);
-        public LoanInfo MediumLoan = new LoanInfo(LoanType.Medium, 125, 250, 0.015, 21)
+            .WithMustCouncilMustApprove(false)
+            .WithInterest(new DailyInterest(0.01))*/;
+        public LoanInfo MediumLoan /*= new LoanInfo(LoanType.Medium, 125, 250, 21)
             .WithMaxChips(6000)
             .WithMaxDebt(3000)
-            .WithForbidOthers(false);
-        public LoanInfo LargeLoan = new LoanInfo(LoanType.Starter, 250, 375, 0.02, 28)
+            .WithInterest(new DailyInterest(0.015))
+            .WithForbidOthers(false)*/;
+        public LoanInfo LargeLoan /*= new LoanInfo(LoanType.Starter, 250, 375, 28)
             .WithMaxChips(7000)
-            .WithForbidOthers(true);
+            .WithInterest(new DailyInterest(0.02))
+            .WithForbidOthers(true)*/;
 
         public LoanInfo GetLoanInfo(LoanType type)
         {
@@ -40,19 +43,45 @@ namespace Casino
             [JsonIgnore]
             public int ChipsGivenToPlayer => (int)LType;
             [JsonIgnore]
-            public int PlayerStartsPaying => RoundToChip(((int)LType) * 1.2);
+            public int PlayerStartsPaying => RoundToChip(((int)LType) * 1.1);
 
             public int MinimumDaily;
             public int MaximumDaily;
-            public double PercentageInterest;
             public int DaysForPayBack;
-            public LoanInfo(LoanType type, int min, int max, double perc, int days)
+            [JsonConverter(typeof(UlongConverter))]
+            public LoanInterest Interest;
+
+            [JsonConstructor]
+            private LoanInfo(LoanType ltype, int minimumdaily, int maximumdaily, int daysforpayback, LoanInterest interest)
+            {
+                LType = ltype;
+                MinimumDaily = minimumdaily;
+                MaximumDaily = maximumdaily;
+                DaysForPayBack = daysforpayback;
+                Interest = interest;
+                if (Interest == null)
+                {
+                    if (ltype == LoanType.Small)
+                        Interest = new DailyInterest(0.01);
+                    else if (ltype== LoanType.Medium)
+                        Interest = new DailyInterest(0.015);
+                    else
+                        Interest = new DailyInterest(0.02);
+                }
+            }
+
+            public LoanInfo(LoanType type, int min, int max, int days)
             {
                 LType = type;
                 MinimumDaily = min;
                 MaximumDaily = max;
-                PercentageInterest = perc;
                 DaysForPayBack = days;
+            }
+
+            public LoanInfo WithInterest(LoanInterest interest)
+            {
+                Interest = interest;
+                return this;
             }
 
             public LoanInfo WithForbidOthers(bool cannotTakeOtherLoans)
@@ -85,7 +114,7 @@ namespace Casino
                 string msg = "Value (you are given): " + this.ChipsGivenToPlayer + "\n";
                 msg += $"Starting Value: {this.PlayerStartsPaying}\n";
                 msg += $"Maximum time: {this.DaysForPayBack} days\n";
-                msg += $"Interest: {this.PercentageInterest * 100}%\n";
+                msg += $"Interest: {this.Interest.Display}\n";
                 msg += $"Minimum / Maximum daily: {this.MinimumDaily} / {this.MaximumDaily}\n";
                 if(CannotTakeWithOtherLoan != true || MaximumDebt != 0 || MaximumChips != 0 || MustBeApprovedByManagement != true)
                 {
