@@ -17,6 +17,13 @@ namespace DiscordBot.Modules
     {                                                                      // such as the current CasinoMember class.
         public TGCUser Self;
 
+        public IRole Marvel => TheGrandCodingGuild.Roles.FirstOrDefault(x => x.Id == 545279460711202817 || x.Name == "Marvel");
+        public IRole Developer => TheGrandCodingGuild.Roles.FirstOrDefault(x => x.Name == "Developers");
+        public IRole Tester => TheGrandCodingGuild.Roles.FirstOrDefault(x => x.Name == "Testers");
+        public IRole Sports => TheGrandCodingGuild.Roles.FirstOrDefault(x => x.Name == "Sports");
+
+        public IRole Seperator => TheGrandCodingGuild.GetRole(558692386507849738);
+
 
         [Command("setnick"), Alias("nick"), Summary("Changes your own nickname")]
         [RequireTGCPerm(TGCPermissions.a_ChangeSelfNickName)]
@@ -88,25 +95,70 @@ namespace DiscordBot.Modules
         }
 
 
-        [Command("marvel"), Summary("Toggles your marvel role")]
+        [Command("toggle marvel"), Summary("Toggles your marvel role")]
         [RequireContext(ContextType.Guild)]
+        [RequireAllowedToggleRole]
         public async Task ToggleMarvelRole()
         {
-            var self = FourAcesCasino.GetTGCUser(Context.User as SocketGuildUser);
-            if(self.Blocked_Toggle_By != 0) {
-                await ReplyAsync($"You are prevented from changing your own roles\r\nYou may wish to contact any Admin. (ref code {self.Blocked_Toggle_By})");
+            if(Self.User.HasRole(Marvel))
+            {
+                await Self.User.RemoveRoleAsync(Marvel, new RequestOptions() { AuditLogReason = $"Self remove" });
+                await ReplyAsync("Removed role.");
             } else
             {
-                var role = TheGrandCodingGuild.Roles.FirstOrDefault(x => x.Id == 545279460711202817 || x.Name == "anyonewhoisinterestedinmarvel");
-                if(self.User.HasRole(role))
-                {
-                    await self.User.RemoveRoleAsync(role);
-                    await ReplyAsync("Removed role.");
-                } else
-                {
-                    await self.User.AddRoleAsync(role);
-                    await ReplyAsync("Added role.");
-                }
+                await Self.User.AddRoleAsync(Marvel, new RequestOptions() { AuditLogReason = $"Self add" });
+                await ReplyAsync("Added role.");
+            }
+        }
+
+        [Command("toggle sports"), Summary("Toggles your Sports role")]
+        [RequireContext(ContextType.Guild)]
+        [RequireAllowedToggleRole]
+        public async Task ToggleSportsRole()
+        {
+            if (Self.User.HasRole(Sports))
+            {
+                await Self.User.RemoveRoleAsync(Sports, new RequestOptions() { AuditLogReason = $"Self remove" });
+                await ReplyAsync("Removed role.");
+            }
+            else
+            {
+                await Self.User.AddRoleAsync(Sports, new RequestOptions() { AuditLogReason = $"Self add" });
+                await ReplyAsync("Added role.");
+            }
+        }
+
+        [Command("toggle tester"), Summary("Toggles your Testers role")]
+        [RequireContext(ContextType.Guild)]
+        [RequireAllowedToggleRole]
+        public async Task ToggleTestersRole()
+        {
+            if (Self.User.HasRole(Tester))
+            {
+                await Self.User.RemoveRoleAsync(Tester, new RequestOptions() { AuditLogReason = $"Self remove" });
+                await ReplyAsync("Removed role.");
+            }
+            else
+            {
+                await Self.User.AddRoleAsync(Tester, new RequestOptions() { AuditLogReason = $"Self add" });
+                await ReplyAsync("Added role.");
+            }
+        }
+
+        [Command("toggle developer"), Summary("Toggles your Developers role")]
+        [RequireContext(ContextType.Guild)]
+        [RequireAllowedToggleRole]
+        public async Task ToggleDevelopersRole()
+        {
+            if (Self.User.HasRole(Developer))
+            {
+                await Self.User.RemoveRoleAsync(Developer, new RequestOptions() { AuditLogReason = $"Self remove" });
+                await ReplyAsync("Removed role.");
+            }
+            else
+            {
+                await Self.User.AddRoleAsync(Developer, new RequestOptions() { AuditLogReason = $"Self add" });
+                await ReplyAsync("Added role.");
             }
         }
 
@@ -120,12 +172,36 @@ namespace DiscordBot.Modules
                 LogMsg("Invalid guild for Self TGC user " + Self.User.Guild.Name);
                 Self.User = TheGrandCodingGuild.GetUser(Self.User.Id);
             }
+            if(command.Name.StartsWith("toggle "))
+            {
+                if(Self.Blocked_Toggle_By != 0)
+                {
+
+                }
+            }
             base.BeforeExecute(command);
         }
 
         protected override void AfterExecute(CommandInfo command)
         {
             FourAcesCasino.Save();
+            bool hasAnyOfTheToggleAble = false;
+            SocketGuildUser g = (SocketGuildUser)Context.User;  
+            foreach(var role in new IRole[] { Marvel, Tester, Developer, Sports})
+            {
+                if (g.Roles.Contains(role))
+                {
+                    hasAnyOfTheToggleAble = true;
+                    break;
+                }
+            }
+            if(hasAnyOfTheToggleAble)
+            {
+                g.AddRoleAsync(Seperator);
+            } else
+            {
+                g.RemoveRoleAsync(Seperator);
+            }
         }
     }
 

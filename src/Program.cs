@@ -29,6 +29,8 @@ namespace DiscordBot
             return ((int)Math.Round(value / 25)) * 25;
         }
 
+        public static bool BOT_TESTING;
+
 
         public static DiscordSocketClient _discord_;
         public static CommandService _commands;
@@ -45,6 +47,7 @@ namespace DiscordBot
 #endif
             Console.WriteLine($"Version: {MasterList.MainMasterList._internal_masterlist_version}.{BOT_MAJOR}.{BOT_MINOR}");
             Console.WriteLine(MAIN_PATH);
+            BOT_TESTING = args.Contains("test");
             new Program().MainAsync(args).GetAwaiter().GetResult();
         }
 
@@ -95,7 +98,8 @@ namespace DiscordBot
             if (DEBUG_DOWNLOAD_SAVE_FILE)
             { // Get & load save file via SFTP
                 LogMsg("We would download the save file, are you sure?", LogSeverity.Warning, "Download");
-                Console.ReadKey(); // allow for us to close.
+                if(!BOT_TESTING)
+                    Console.ReadKey(); // allow for us to close.
                 GetSaveFile();
             }
             await RunAsync();
