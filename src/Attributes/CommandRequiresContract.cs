@@ -22,7 +22,11 @@ namespace DiscordBot.Attributes
             int current = Program.Storage.CurrentContractVersion;
             if(current >= Version)
                 return Task.FromResult(PreconditionResult.FromSuccess());
+#if DEBUG
+            return Task.FromResult(PreconditionResult.FromSuccess()); // Debugging always succeeds.
+#else
             return Task.FromResult(PreconditionResult.FromError($"Command requires Membership contract version {Version}{(string.IsNullOrWhiteSpace(Reason) ? "" : "\r\nBecause: " + Reason)}"));
+#endif
         }
     }
 }

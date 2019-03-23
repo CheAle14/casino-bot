@@ -164,6 +164,12 @@ namespace Casino
                 return val;
             } }
 
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        [System.ComponentModel.DefaultValue(0)]
+        public int BlackjackGamesMissed;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        [System.ComponentModel.DefaultValue(0)]
+        public int PokerGamesMissed;
 
         [System.ComponentModel.DefaultValue(3000)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
