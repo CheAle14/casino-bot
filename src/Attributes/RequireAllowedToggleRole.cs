@@ -12,6 +12,8 @@ namespace DiscordBot.Attributes
     {
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
+            if (context.Guild.Id != Program.TheGrandCodingGuild.Id)
+                return Task.FromResult(PreconditionResult.FromError($"User is not within the {Program.TheGrandCodingGuild.Name} guild"));
             var self = FourAcesCasino.GetTGCUser(context.User as SocketGuildUser);
             if(self.Blocked_Toggle_By != 0)
             {

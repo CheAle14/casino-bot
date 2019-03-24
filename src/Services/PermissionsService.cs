@@ -43,19 +43,23 @@ namespace DiscordBot.Permissions
 
 
         [JsonIgnore]
-        public List<SuppressWarningAttribute> SuppressedWarnings = new List<SuppressWarningAttribute>();
+        public List<PermissionAttribute> Attributes = new List<PermissionAttribute>();
 
         public bool NotSuppressed<T>() where T : SuppressWarningAttribute
         {
-            var type = typeof(T);
-            if (!type.IsSubclassOf(typeof(SuppressWarningAttribute)))
-                throw new ArgumentException("Type given is not a valid SuppressWarningAttribute: " + type.FullName);
-            foreach(var attribute in SuppressedWarnings)
+            return !HasAttribute<T>();
+        }
+
+        public bool IsSharedPerm => HasAttribute<SharedDivisionPermissionAttribute>();
+        
+        public bool HasAttribute<T>() where T: PermissionAttribute
+        {
+            foreach(var attr in Attributes)
             {
-                if (attribute.GetType() ==  type)
-                    return false;
+                if (attr.GetType() == typeof(T))
+                    return true;
             }
-            return true;
+            return false;
         }
 
         string[] nodes;
@@ -83,10 +87,10 @@ namespace DiscordBot.Permissions
             Node = str;
             nodes = Node.Split('.');
             var desc = field.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false).FirstOrDefault() as System.ComponentModel.DescriptionAttribute;
-            var suppressions = field.GetCustomAttributes(typeof(SuppressWarningAttribute), false);
-            foreach(SuppressWarningAttribute attr in suppressions)
+            var suppressions = field.GetCustomAttributes(typeof(PermissionAttribute), false);
+            foreach(PermissionAttribute attr in suppressions)
             {
-                SuppressedWarnings.Add(attr);
+                Attributes.Add(attr);
             }
             if (desc == null && this.NotSuppressed<SuppressNoDescriptionAttribute>())
                     Program.LogMsg($"{Node} {Division} does not have description attribute assigned.", LogSeverity.Warning, "Perms");

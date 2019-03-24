@@ -7,7 +7,8 @@ using System.Text;
 namespace DiscordBot.Permissions
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
-    public class SuppressWarningAttribute : Attribute { }
+    public abstract class PermissionAttribute : Attribute { }
+    public class SuppressWarningAttribute : PermissionAttribute { }
     /// <summary>
     /// Suppresses the warning indicating that the node has no '*' permission
     /// </summary>
@@ -16,6 +17,13 @@ namespace DiscordBot.Permissions
     /// Suppresses the warning if there is no description on the node.
     /// </summary>
     public class SuppressNoDescriptionAttribute : SuppressWarningAttribute { }
+    /// <summary>
+    /// Indicates that the Permission is shared between all Divisions, 
+    /// and so should be displayed as such in the `/division perms` command
+    /// </summary>
+    public class SharedDivisionPermissionAttribute : PermissionAttribute { }
+
+
 
     public static partial class Perms
     {
