@@ -137,16 +137,16 @@ namespace DiscordBot.Services
             if (issue.IsPullRequest)
             {
                 var str = "";
-                issue.FetchPullRequest();
-                str += $"\r\nThis {(issue.Pullrequest.Merged ? "merged" : "will merge")} **{issue.Pullrequest.Head.Name}** into {issue.Pullrequest.Base.Name}";
+                var pr = issue.GetPullRequest();
+                str += $"\r\nThis {(pr.Merged ? "merged" : "will merge")} **{pr.Head.Name}** into {pr.Base.Name}";
                 string canBe = "might be mergeable - currently unknown";
-                if (issue.Pullrequest.Mergeable.GetValueOrDefault(false))
+                if (pr.Mergeable.GetValueOrDefault(false))
                 {
                     canBe = "can be merged";
                 }
-                else if (issue.Pullrequest.Merged)
+                else if (pr.Merged)
                 {
-                    canBe = $"was merged by {issue.Pullrequest.MergedBy.Login} at {issue.Pullrequest.MergedAt}";
+                    canBe = $"was merged by {pr.MergedBy.Login} at {pr.MergedAt}";
                 }
                 str += $"\r\nThis pull request " + canBe;
                 builder.AddField(x =>

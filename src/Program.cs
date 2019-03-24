@@ -18,7 +18,7 @@ using System.Linq;
 using System.Reflection;
 using System.ComponentModel;
 using System.Net;
-
+using DiscordBot.TypeReaders;
 
 namespace DiscordBot
 {
@@ -99,7 +99,16 @@ namespace DiscordBot
             { // Get & load save file via SFTP
                 LogMsg("We would download the save file, are you sure?", LogSeverity.Warning, "Download");
                 if(!BOT_TESTING)
-                    Console.ReadKey(); // allow for us to close.
+                {
+                    try
+                    {
+                        ConsoleReader.ReadLine(5000);
+                    }
+                    catch (TimeoutException)
+                    {
+                        LogMsg(new LogMessage(LogSeverity.Warning, "Download", "User failed to respond in timeout, downloading anyway..."));
+                    }
+                }
                 GetSaveFile();
             }
             await RunAsync();
