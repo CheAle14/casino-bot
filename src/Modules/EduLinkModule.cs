@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Discord.WebSocket;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace DiscordBot.Modules
 {
@@ -24,6 +25,7 @@ namespace DiscordBot.Modules
 
         public static Dictionary<string, Class> Classes = new Dictionary<string, Class>();
 
+        public const string HomeworkRegex = @"(?<=homework\/|hwk\/)[0-9]*";
 
         [Obsolete("", true)]
         public static HwkUser GetUser(SocketGuildUser user)
@@ -39,8 +41,13 @@ namespace DiscordBot.Modules
             return rtnuser;
         }
 
-        public static void RefreshHomework()
+
+        static DateTime lastSentRequests = DateTime.Now;
+        public static void RefreshHomework(bool overrideTimeout = false)
         {
+            TimeSpan diff = DateTime.Now - lastSentRequests;
+            if (diff.TotalMinutes < 15 && !overrideTimeout)
+                return; // don't update if spammy
             AllHomework = new Dictionary<int, Homework>();
             foreach(var u in Users)
             {
@@ -84,9 +91,9 @@ namespace DiscordBot.Modules
             }
         }
 
-        public static void CheckNotify()
+        public static void CheckNotify(bool overrideTimeout = false)
         {
-            RefreshHomework();
+            RefreshHomework(overrideTimeout);
             foreach(var hwk in AllHomework.Values)
             {
                 EmbedBuilder builder = hwk.ToEmbed().ToEmbedBuilder();
@@ -118,15 +125,46 @@ namespace DiscordBot.Modules
             }
         }
 
-        public EdulinkModule()
+        public EdulinkModule(DiscordSocketClient client)
         {
+            client.MessageReceived += Client_MessageReceived;
+        }
+
+        private Task Client_MessageReceived(SocketMessage arg)
+        {
+            if(arg.Source == MessageSource.User)
+            {
+                var msg = (SocketUserMessage)arg;
+                if(msg.Channel is SocketTextChannel chnl)
+                {
+                    if(chnl.Name == "homework-help")
+                    {
+                        string content = msg.Content;
+                        var regex = new Regex(HomeworkRegex);
+                        var match = regex.Matches(content);
+                        RefreshHomework();
+                        foreach(Match mat in match)
+                        {
+                            var text = mat.Value;
+                            if(int.TryParse(text, out int id))
+                            {
+                                if(AllHomework.TryGetValue(id, out var hwk))
+                                {
+                                    msg.Channel.SendMessageAsync($"Respond: {arg.Author.Username}#{arg.Author.Discriminator}", false, hwk.ToEmbed());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return Task.CompletedTask;
         }
 
         [Command("check")]
         [RequireUserPermission(GuildPermission.Administrator)]
         public async Task ForceCheck()
         {
-            CheckNotify();
+            CheckNotify(true); // overrided the timeout and force a re-check
         }
 
         [Command("class"), Summary("Adds the user to the given class, format: `subject/group`, eg: `Maths/X1`")]
@@ -152,7 +190,7 @@ namespace DiscordBot.Modules
                 await user.User.RemoveRoleAsync(cls.Role);
                 if (user.Classes.Count == 0)
                     await user.User.RemoveRoleAsync(Separator);
-                await ReplyAsync($"Removed {user.User.Nickname} from {cls.Name}");
+                await ReplyAsync($"Removed {user.Name} from {cls.Name}");
             }
             else
             {
@@ -160,7 +198,7 @@ namespace DiscordBot.Modules
                 user.Classes.Add(cls.Name);
                 await user.User.AddRoleAsync(cls.Role);
                 await user.User.AddRoleAsync(Separator);
-                await ReplyAsync($"Added {user.User.Nickname} to {cls.Name}");
+                await ReplyAsync($"Added {user.Name} to {cls.Name}");
             }
         }
 
@@ -178,7 +216,7 @@ namespace DiscordBot.Modules
             EmbedBuilder builder = new EmbedBuilder()
             {
                 Title = cls.Name,
-                Description = string.Join("\r\n", cls.Users.Select(x => x.User.Nickname))
+                Description = string.Join("\r\n", cls.Users.Select(x => x.Name))
             };
             await ReplyAsync("", false, builder.Build());
         }
@@ -270,7 +308,7 @@ namespace DiscordBot.Modules
         {
             EmbedBuilder builder = new EmbedBuilder()
             {
-                Title = user.User.Nickname
+                Title = user.Name
             };
             builder.AddField("Classes", string.Join("\r\n", user.Classes));
             builder.AddField("Days", string.Join(", ", user.NotifyOnDays));
@@ -334,11 +372,17 @@ namespace DiscordBot.Modules
     {
         public static string Markdown(string input)
         {
+            // handle any input that the converted below cant
             input = input.Replace("<p>", "");
             input = input.Replace("</p>", "");
             input = input.Replace("<br>", "\r\n");
+            input = input.Replace("<u>", "");
+            input = input.Replace("</u>", "");
 
-            return input;
+            var converter = new Html2Markdown.Converter();
+            string markdown = converter.Convert(input);
+
+            return markdown;
         }
         public static string Clamp(string input, int max = 200)
         {
@@ -354,12 +398,11 @@ namespace DiscordBot.Modules
         }
         public static Embed ToEmbed(this EduLinkRPC.Classes.Homework hwk)
         {
-            var converter = new Html2Markdown.Converter();
-            string markdown = converter.Convert(hwk.Description);
             EmbedBuilder builder = new EmbedBuilder()
             {
                 Title = hwk.Activity,
-                Description = Clamp(markdown, 2000)
+                Description = Clamp(Markdown(hwk.Description), 2000),
+                Footer = new EmbedFooterBuilder().WithText($"Mention: homework/{hwk.Id}")
             };
             builder.AddField(x =>
             {
