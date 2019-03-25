@@ -42,7 +42,7 @@ namespace DiscordBot.Modules
         }
 
 
-        static DateTime lastSentRequests = DateTime.Now;
+        static DateTime lastSentRequests = new DateTime(2019, 01, 01); // so that it is always out of date, so first check gets through
         public static void RefreshHomework(bool overrideTimeout = false)
         {
             TimeSpan diff = DateTime.Now - lastSentRequests;
