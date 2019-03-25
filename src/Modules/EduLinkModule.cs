@@ -14,6 +14,8 @@ using System.Text.RegularExpressions;
 
 namespace DiscordBot.Modules
 {
+    using EduLinkRPC;
+    using static EdulinkExtensions;
     [Group("edulink"), Name("Edulink/Homework Commands")]
     public class EdulinkModule : InteractiveBase
     {
@@ -27,18 +29,15 @@ namespace DiscordBot.Modules
 
         public const string HomeworkRegex = @"(?<=homework\/|hwk\/)[0-9]*";
 
-        [Obsolete("", true)]
-        public static HwkUser GetUser(SocketGuildUser user)
+        public static async Task<HwkUser> GetUser(ICommandContext context, string input)
         {
-            if (user == null)
-                return null;
-            HwkUser rtnuser = Users.FirstOrDefault(x => x.User.Id == user.Id);
-            if(rtnuser == null)
+            var typeReader = new DiscordBot.HwkUserTypeReader();
+            var result = await typeReader.ReadAsync(context, input, services);
+            if(result.IsSuccess)
             {
-                rtnuser = new HwkUser(user, "", "");
-                Users.Add(rtnuser);
+                return result.Values.FirstOrDefault().Value as HwkUser;
             }
-            return rtnuser;
+            return null;
         }
 
 
@@ -51,6 +50,7 @@ namespace DiscordBot.Modules
             AllHomework = new Dictionary<int, Homework>();
             foreach(var u in Users)
             {
+                u.Homework = new List<Homework>();
                 foreach(var cls in u.Classes)
                 {
                     var clsObj = Classes.FirstOrDefault(x => x.Key == cls).Value;
@@ -64,6 +64,7 @@ namespace DiscordBot.Modules
                 var tryCast = current.ToObject<Homework[]>();
                 foreach(var hwk in tryCast)
                 {
+                    u.Homework.Add(hwk);
                     if (AllHomework.ContainsKey(hwk.Id))
                     {
                         // we have it, so add us to the applies to
@@ -125,8 +126,18 @@ namespace DiscordBot.Modules
             }
         }
 
-        public EdulinkModule(DiscordSocketClient client)
+
+        public static void EdulinkSentRequest(object sender, JsonRpcEventArgs e)
         {
+            Edulink client = (Edulink)sender;
+            Program.LogMsg($"{Edulink.Url}{e.Method}", LogSeverity.Info, $"{e.Username}/Edulink");
+        }
+
+
+        static IServiceProvider services;
+        public EdulinkModule(DiscordSocketClient client, IServiceProvider _service)
+        {
+            services = _service;
             client.MessageReceived += Client_MessageReceived;
         }
 
@@ -137,7 +148,12 @@ namespace DiscordBot.Modules
                 var msg = (SocketUserMessage)arg;
                 if(msg.Channel is SocketTextChannel chnl)
                 {
-                    if(chnl.Name == "homework-help")
+#if DEBUG
+                    string chnlName = "test";
+#else
+                    string chnlName = "homework-help";
+#endif
+                    if (chnl.Name == chnlName)
                     {
                         string content = msg.Content;
                         var regex = new Regex(HomeworkRegex);
@@ -234,7 +250,7 @@ namespace DiscordBot.Modules
                 "Your username and password **will be stored in plain text**\r\n" +
                 "This is **compeltely** unsecure.\r\n\r\n" +
                 "***Only reply with your password if you do not use it elsewhere***");
-            await ReplyAsync("Reply with only your password within 30 seconds, or wait for timeout.");
+            await ReplyAsync("Reply with only your password within 30 seconds, or wait for timeout.\r\n*You can ignore the message saying this is 'only' for commands*");
             var pwd = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
             if (pwd == null || string.IsNullOrWhiteSpace(pwd.Content))
             {
@@ -243,6 +259,7 @@ namespace DiscordBot.Modules
             {
                 var password = pwd.Content;
                 var edulink = new EduLinkRPC.Edulink(username, password);
+                edulink.SendingRequest += EdulinkSentRequest;
                 JToken thing = null;
                 try
                 {
@@ -316,6 +333,61 @@ namespace DiscordBot.Modules
             await ReplyAsync("", false, builder.Build());
         }
 
+        [Command("current"), Summary("View your current homeworks not completed")]
+        public async Task CurrentHomework()
+        {
+            HwkUser user = await GetUser(Context, Context.User.Id.ToString());
+            EmbedBuilder builder = new EmbedBuilder()
+            {
+                Title = user.Name + " - Current Homework"
+            };
+            foreach(var hwk in user.Homework.OrderByDescending(x => x.DueDate.DayOfYear))
+            {
+                if(!hwk.Completed)
+                {
+                    string name = Clamp($"{hwk.Id}: {hwk.Activity}", 128);
+                    string desc = Clamp($"Added {hwk.AvailableText}, due {hwk.DueText}\r\nSubject {hwk.Subject}\r\nSet {hwk.SetBy}", 1000);
+                    builder.AddField(name, desc);
+                }
+            }
+            if (builder.Fields.Count == 0)
+                builder.AddField("No homework", "You do not have any current homework");
+            await ReplyAsync("", false, builder.Build());
+        }
+
+        [Command("complete"), Alias("done"), Summary("Marks a homework with given ID as complete")]
+        public async Task MarkComplete(int homework_id)
+        {
+            var selfUser = await GetUser(Context, Context.User.Id.ToString());
+            // it will only be here if the homework was added by this current user, else it is null
+            var ownHomework = selfUser.Homework.FirstOrDefault(x => x.Id == homework_id);
+            if(ownHomework != null)
+            {
+                try
+                {
+                    selfUser.EdulinkClient.CompleteHomework(ownHomework);
+                    await ReplyAsync("Homework marked as complete.\r\nThe bot may not update as it caches queries");
+                    // it doesnt actually cache but lol
+                } catch (Exception ex)
+                {
+                    await ReplyAsync("Errored: " + ex.Message);
+                }
+            } else
+            {
+                // student homework set by another student
+                AllHomework.TryGetValue(homework_id, out var homework);
+                if(homework != null)
+                {
+                    selfUser.OtherHomeworksMarkedAsDone.Add(homework.Id);
+                    await ReplyAsync("Homework marked as complete and will no longer be mentioned:\r\n" + homework.Activity);
+                } else
+                {
+                    await ReplyAsync($"Error: unknown homework id.\r\nYou may get this by using `{Program.BOT_PREFIX}edulink current`, and seeing the number before the title" +
+                        $"\r\nOr you may see it via the `Mention: homework/[id]` in the #homework channel");
+                }
+            }
+        }
+
         protected override void BeforeExecute(CommandInfo command)
         {
             RefreshHomework();
@@ -370,6 +442,7 @@ namespace DiscordBot.Modules
     // Extensions
     public static class EdulinkExtensions
     {
+        public const string SpanOuterFind = @"(?:\<span).*(?:\<\/span>)"; // @"(?<=\<span).*(?=\<\/span\>)";
         public static string Markdown(string input)
         {
             // handle any input that the converted below cant
@@ -378,6 +451,16 @@ namespace DiscordBot.Modules
             input = input.Replace("<br>", "\r\n");
             input = input.Replace("<u>", "");
             input = input.Replace("</u>", "");
+
+            var spanRemove = new Regex(SpanOuterFind);
+            var matches = spanRemove.Matches(input);
+            foreach(Match match in matches)
+            {
+                var str = match.Value;
+                str = str.Replace("</span>", "");
+                str = str.Substring(str.IndexOf(">") + 1); // assume first > closes the span tag
+                input = input.Replace(match.Value, str); // replace it.
+            }
 
             var converter = new Html2Markdown.Converter();
             string markdown = converter.Convert(input);
@@ -396,6 +479,12 @@ namespace DiscordBot.Modules
             }
             return input;
         }
+
+        public static bool IsUrgent(this Homework hwk)
+        {
+            return hwk.DueText.Contains("today") || hwk.DueText.Contains("tomorrow");
+        }
+
         public static Embed ToEmbed(this EduLinkRPC.Classes.Homework hwk)
         {
             EmbedBuilder builder = new EmbedBuilder()
@@ -404,6 +493,10 @@ namespace DiscordBot.Modules
                 Description = Clamp(Markdown(hwk.Description), 2000),
                 Footer = new EmbedFooterBuilder().WithText($"Mention: homework/{hwk.Id}")
             };
+            if(hwk.IsUrgent())
+            {
+                builder.Color = Color.Red;
+            }
             builder.AddField(x =>
             {
                 x.Name = "Subject";
@@ -413,7 +506,7 @@ namespace DiscordBot.Modules
             builder.AddField(x =>
             {
                 x.Name = "Due";
-                x.Value = hwk.DueText;
+                x.Value = hwk.IsUrgent() ? "**" + hwk.DueText + "**" : hwk.DueText;
                 x.IsInline = true;
             });
             builder.AddField(x =>
@@ -422,6 +515,15 @@ namespace DiscordBot.Modules
                 x.Value = hwk.SetBy;
                 x.IsInline = true;
             });
+            if(hwk.Attachments.Count > 0)
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = $"Attachments";
+                    x.Value = string.Join("\r\n", hwk.Attachments.Select(y => y.FileName));
+                    x.IsInline = false;
+                });
+            }
             return builder.Build();
         }
     }
