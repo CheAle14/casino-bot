@@ -74,7 +74,7 @@ namespace DiscordBot
                 }
                 else
                 {
-                    CLOSE_APPLICATION(32);
+                    //CLOSE_APPLICATION(32);
                 }
             }
 #endif

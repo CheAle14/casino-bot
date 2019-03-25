@@ -274,6 +274,7 @@ namespace DiscordBot
 
             _commands.AddTypeReader(typeof(SocketGuildUser), new SocketGuildUserTypeReader()); 
             _commands.AddTypeReader(typeof(CasinoMember), new CasinoMemberTypeReader());
+            _commands.AddTypeReader(typeof(EduLinkRPC.Classes.HwkUser), new HwkUserTypeReader());
             ServiceProvider = provider;
         }
 
