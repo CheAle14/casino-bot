@@ -264,6 +264,20 @@ namespace DiscordBot.Modules
             await ReplyAsync("Settings updated! (or remain as they were)");
         }
 
+        [Command("user"), Summary("View user information")]
+        [RequireUserPermission(GuildPermission.Administrator)]
+        public async Task ViewUser(HwkUser user)
+        {
+            EmbedBuilder builder = new EmbedBuilder()
+            {
+                Title = user.User.Nickname
+            };
+            builder.AddField("Classes", string.Join("\r\n", user.Classes));
+            builder.AddField("Days", string.Join(", ", user.NotifyOnDays));
+            builder.AddField("Self-Hwk", user.NotifyForSelfHomework.ToString());
+            await ReplyAsync("", false, builder.Build());
+        }
+
         protected override void BeforeExecute(CommandInfo command)
         {
             RefreshHomework();
@@ -340,10 +354,12 @@ namespace DiscordBot.Modules
         }
         public static Embed ToEmbed(this EduLinkRPC.Classes.Homework hwk)
         {
+            var converter = new Html2Markdown.Converter();
+            string markdown = converter.Convert(hwk.Description);
             EmbedBuilder builder = new EmbedBuilder()
             {
                 Title = hwk.Activity,
-                Description = Clamp(hwk.Description)
+                Description = Clamp(markdown, 2000)
             };
             builder.AddField(x =>
             {
