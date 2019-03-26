@@ -166,7 +166,15 @@ namespace Casino
 
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [System.ComponentModel.DefaultValue(0)]
-        public int BlackjackGamesMissed;
+        public int BlackjackGamesMissedNoFee;
+
+        [JsonProperty("bj_withfee", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        [System.ComponentModel.DefaultValue(0)]
+        public int BlackjackGamesMissedWithFee;
+
+        [JsonIgnore]
+        public int BlackjackTotalGamesMissed => BlackjackGamesMissedNoFee + BlackjackGamesMissedWithFee;
+
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [System.ComponentModel.DefaultValue(0)]
         public int PokerGamesMissed;
