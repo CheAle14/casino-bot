@@ -11,6 +11,7 @@ using Discord.WebSocket;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
+using static DiscordBot.Program;
 
 namespace DiscordBot.Modules
 {
@@ -20,6 +21,28 @@ namespace DiscordBot.Modules
     public class EdulinkModule : InteractiveBase
     {
         public static IRole Separator = Program.TheGrandCodingGuild.GetRole(559765210945290271);
+
+        public static ICategoryChannel HwkCategory = Program.TheGrandCodingGuild.GetChannel(560004545514831872) as ICategoryChannel;
+
+        public static ITextChannel GetChannel(string subject)
+        {
+            var allChannels = Program.TheGrandCodingGuild.TextChannels.Where(x => x.CategoryId.HasValue && x.CategoryId.Value == HwkCategory.Id);
+            subject = subject.Replace("R.E.", "RE");
+            // any other things
+
+            // end
+            subject = subject.ToLower();
+            var channel = allChannels.FirstOrDefault(x => x.Name == subject);
+            if(channel == null)
+            {
+                var rest = Program.TheGrandCodingGuild.CreateTextChannelAsync(subject, x =>
+                {
+                    x.CategoryId = HwkCategory.Id;
+                }).Result;
+                return rest.GetTextChannel();
+            }
+            return channel;
+        }
 
         public static Dictionary<int, Homework> AllHomework = new Dictionary<int, Homework>();
 
@@ -47,6 +70,7 @@ namespace DiscordBot.Modules
             TimeSpan diff = DateTime.Now - lastSentRequests;
             if (diff.TotalMinutes < 15 && !overrideTimeout)
                 return; // don't update if spammy
+            lastSentRequests = DateTime.Now;
             AllHomework = new Dictionary<int, Homework>();
             foreach(var u in Users)
             {
@@ -59,10 +83,11 @@ namespace DiscordBot.Modules
                         clsObj.Users.Add(u);
                     }
                 }
+                if (u.IsNotifyOnly)
+                    continue; // the user hasn't given their password, and only wants to recieve Hwk via classes.
                 var homework = u.EdulinkClient.GetHomework();
-                var current = homework["homework"]["current"];
-                var tryCast = current.ToObject<Homework[]>();
-                foreach(var hwk in tryCast)
+                var current = homework.Where(x => x.Current);
+                foreach(var hwk in current)
                 {
                     u.Homework.Add(hwk);
                     if (AllHomework.ContainsKey(hwk.Id))
@@ -122,10 +147,12 @@ namespace DiscordBot.Modules
                     builder.AddField("Classes", classes, false);
                 }
                 if(notify.Count > 0)
-                    Program.C_HOMEWORK.SendMessageAsync(text, false, builder.Build());
+                {
+                    var channel = GetChannel(hwk.Subject);
+                    channel.SendMessageAsync(text, false, builder.Build());
+                }
             }
         }
-
 
         public static void EdulinkSentRequest(object sender, JsonRpcEventArgs e)
         {
@@ -229,12 +256,70 @@ namespace DiscordBot.Modules
                 await ReplyAsync("Unknown class, allowed values: " + string.Join(", ", Classes.Values.Select(x => x.Name)));
                 return;
             }
-            EmbedBuilder builder = new EmbedBuilder()
+            await ReplyAsync("", false, cls.ToEmbed());
+        }
+
+        [Command("rename"), Summary("Changes the name of a class")]
+        public async Task RenameClass([Remainder]string current)
+        {
+            var clas = Classes.Values.FirstOrDefault(x => x.Name == current);
+            if(clas == null)
             {
-                Title = cls.Name,
-                Description = string.Join("\r\n", cls.Users.Select(x => x.Name))
-            };
-            await ReplyAsync("", false, builder.Build());
+                await ReplyAsync("Unknown class: `" + current + "`");
+            } else
+            {
+                await ReplyAsync("Please enter the new name of the following class in your next message", false, clas.ToEmbed());
+                var nxt = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+                if(nxt != null && !string.IsNullOrWhiteSpace(nxt.Content))
+                {
+                    if(nxt.Content.Contains("/") == false)
+                    {
+                        await ReplyAsync("Error: you have a subject, but no class: `subject/class`, eg: `Mathematics/X1`");
+                    } else
+                    {
+                        clas.Name = nxt.Content;
+                        await clas.Role.ModifyAsync(x =>
+                        {
+                            x.Name = nxt.Content;
+                        });
+                        await ReplyAsync("Updated!");
+                    }
+                }
+            }
+        }
+
+        [Command("alias")]
+        public async Task AliasClass([Remainder]string name)
+        {
+            string input = "y";
+            var clas = Classes.Values.FirstOrDefault(x => x.Name == name);
+            if(clas != null)
+            {
+                await ReplyAsync("You are about to enter a while-loop.\r\nIf you enter `exit`, you will close.\r\nGive a new alias to add it.\r\nRepeat an existing alias to remove.");
+                while(input != "exit")
+                {
+                    await ReplyAsync("Please enter a new alias, or an existing one to remove", false, clas.ToEmbed());
+                    var nxt = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+                    if (nxt.Content == "exit")
+                        break;
+                    if(nxt != null && !string.IsNullOrWhiteSpace(nxt.Content))
+                    {
+                        int numRemoved = clas.SubjectAliases.RemoveAll(x => x == nxt.Content);
+                        if(numRemoved > 0)
+                        {
+                            await ReplyAsync("Removed.");
+                        } else
+                        {
+                            clas.SubjectAliases.Add(nxt.Content);
+                            await ReplyAsync("Added.");
+                        }
+                    } else
+                    {
+                        input = "exit";
+                        await ReplyAsync("Goodbye!");
+                    }
+                }
+            }
         }
 
         [Command("setup"), Summary("Adds your EduLink account to the bot")]
@@ -327,7 +412,8 @@ namespace DiscordBot.Modules
             {
                 Title = user.Name
             };
-            builder.AddField("Classes", string.Join("\r\n", user.Classes));
+            string classes = string.Join("\r\n", user.Classes);
+            builder.AddField("Classes", classes.Length > 0 ? classes : $"None, `{BOT_PREFIX}edulink class {user.Name} [class]`" );
             builder.AddField("Days", string.Join(", ", user.NotifyOnDays));
             builder.AddField("Self-Hwk", user.NotifyForSelfHomework.ToString());
             await ReplyAsync("", false, builder.Build());
@@ -388,6 +474,38 @@ namespace DiscordBot.Modules
             }
         }
 
+        [Command("password"), Summary("Changes your saved passowrd")]
+        [RequireContext(ContextType.DM)]
+        public async Task SetPassword([Remainder]string password)
+        {
+            var self = await GetUser(Context, Context.User.Id.ToString());
+            if(self == null)
+            {
+                await ReplyAsync($"Error: you have not set up your account.\r\nTo do so, please use `{BOT_PREFIX}edulink setup`");
+            } else
+            {
+                self.Password = password;
+                await ReplyAndDeleteAsync($"Password for account {self.Username} has been set to `{password}`");
+                // delete message automatically
+            }
+        }
+
+        [Command("add"), Summary("Adds the user without their password.")]
+        [RequireUserPermission(GuildPermission.Administrator)]
+        public async Task AdminAddNotify(SocketGuildUser user, string username)
+        {
+            var existing = await GetUser(Context, user.Id.ToString());
+            if(existing == null)
+            {
+                var hwkUser = new HwkUser(user, username, "");
+                Users.Add(hwkUser);
+                await ReplyAsync($"User added, use the `{BOT_PREFIX}edulink class {user.Username} [class]` to add a class to the user.");
+            } else
+            {
+                await ReplyAsync("User already exists:", false, existing.ToEmbed());
+            }
+        }
+
         protected override void BeforeExecute(CommandInfo command)
         {
             RefreshHomework();
@@ -408,6 +526,9 @@ namespace DiscordBot.Modules
         [JsonIgnore]
         public override string Subject => Name.Substring(0, Name.IndexOf("/"));
 
+        [JsonProperty("Aliases", NullValueHandling = NullValueHandling.Ignore)]
+        public override List<string> SubjectAliases { get; set; } = new List<string>();
+
         [JsonIgnore]
         public override List<HwkUser> Users { get; set; } = new List<HwkUser>();
 
@@ -418,6 +539,19 @@ namespace DiscordBot.Modules
             Role = role;
             Name = role.Name;
             Users = new List<HwkUser>();
+        }
+
+        public Embed ToEmbed()
+        {
+
+            EmbedBuilder builder = new EmbedBuilder()
+            {
+                Title = this.Name,
+                Description = string.Join("\r\n", this.Users.Select(x => x.Name))
+            };
+            if (this.SubjectAliases.Count > 0)
+                builder.AddField("Aliases", "Subject aliases:\r\n'" + string.Join("', '", this.SubjectAliases) + "'");
+            return builder.Build();
         }
 
         [JsonConstructor]
@@ -526,5 +660,22 @@ namespace DiscordBot.Modules
             }
             return builder.Build();
         }
+
+
+        public static Embed ToEmbed(this HwkUser user)
+        {
+            EmbedBuilder builder = new EmbedBuilder()
+            {
+                Title = user.Name,
+                Description = $"Due homework: {user.Homework.Where(x => x.Completed == false && x.DueDate > DateTime.Now)}"
+            };
+            if(user.Classes.Count > 0)
+            {
+                builder.AddField("Classes", string.Join("\r\n", user.Classes));
+            }
+            return builder.Build();
+        }
+
+
     }
 }
