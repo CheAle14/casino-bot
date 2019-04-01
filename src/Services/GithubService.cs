@@ -109,7 +109,7 @@ namespace DiscordBot.Services
                 max++;
                 if (max > 3)
                     return;
-                await arg.Channel.SendMessageAsync("", false);
+                await arg.Channel.SendMessageAsync("", false, match.ToEmbed());
             }
         }
     }

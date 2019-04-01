@@ -259,6 +259,55 @@ namespace DiscordBot.Modules
             await ReplyAsync("", false, cls.ToEmbed());
         }
 
+        [Command("teacher"), Summary("View, or set, teacher information")]
+        public async Task SetOrViewTeacher([Remainder]string name)
+        {
+            var clas = Classes.Values.FirstOrDefault(x => x.Name == name);
+            if(clas == null)
+            {
+                await ReplyAsync("Unknown class name: `" + name + "`");
+            } else
+            {
+                var tgcUser = TheGrandCodingGuild.GetUser(Context.User.Id);
+                if(string.IsNullOrWhiteSpace(name))
+                {
+                    if(tgcUser.GuildPermissions.Administrator)
+                    {
+                        await ReplyAsync("Next message will set the name of the teacher.");
+                        var nxt = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+                        if(nxt != null && !string.IsNullOrWhiteSpace(nxt.Content))
+                        {
+                            clas.Teacher = nxt.Content;
+                            await ReplyAsync("", false, clas.ToEmbed());
+                        } else
+                        {
+                            await ReplyAsync("Cancelled.");
+                        }
+                    } else
+                    {
+                        await ReplyAsync("Class has no teacher set.");
+                    }
+                } else
+                {
+                    await ReplyAsync("Class information:", false, clas.ToEmbed());
+                    if (tgcUser.GuildPermissions.Administrator)
+                    {
+                        await ReplyAsync("Next message will set the name of the teacher.");
+                        var nxt = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+                        if (nxt != null && !string.IsNullOrWhiteSpace(nxt.Content))
+                        {
+                            clas.Teacher = nxt.Content;
+                            await ReplyAsync("", false, clas.ToEmbed());
+                        }
+                        else
+                        {
+                            await ReplyAsync("Cancelled.");
+                        }
+                    }
+                }
+            }
+        }
+
         [Command("rename"), Summary("Changes the name of a class")]
         public async Task RenameClass([Remainder]string current)
         {
@@ -526,6 +575,15 @@ namespace DiscordBot.Modules
         [JsonIgnore]
         public override string Subject => Name.Substring(0, Name.IndexOf("/"));
 
+        public string Teacher { get; set; }
+
+        public override bool SameSubject(Homework hwk)
+        {
+            var subject = hwk.Subject;
+            subject = subject.Replace("Maths", "Mathematics");
+            return (subject == Subject || SubjectAliases.Contains(subject)) && hwk.SetBy == Teacher;
+        }
+
         [JsonProperty("Aliases", NullValueHandling = NullValueHandling.Ignore)]
         public override List<string> SubjectAliases { get; set; } = new List<string>();
 
@@ -551,6 +609,8 @@ namespace DiscordBot.Modules
             };
             if (this.SubjectAliases.Count > 0)
                 builder.AddField("Aliases", "Subject aliases:\r\n'" + string.Join("', '", this.SubjectAliases) + "'");
+            if (!string.IsNullOrWhiteSpace(this.Teacher))
+                builder.AddField("Teacher", this.Teacher, true);
             return builder.Build();
         }
 
