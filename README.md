@@ -15,3 +15,6 @@ Some of the source code has been included here, but some classes have been split
 * Any **Wiki related** changes (extensions or additional configuration) for the [wiki](https://masterlist.uk.ms/wiki) should be put [at the wiki project](https://github.com/CheAle14/casino-bot/projects/3)
 * Any **code related** changes should be put in that project.
  
+ 
+ # Actual source code
+ The full source code of the bot may be found at [this link](https://github.com/cheale14/bot-source-code). It is a private, invite-only, repository.
