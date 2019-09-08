@@ -1,4 +1,4 @@
-$casinofiles = "D:\Documents\_CasinoDocs\CasinoBotRepo\src"
+$casinofiles = "D:\_GitHub\bot-source-code\src"
 $localFiles = "D:\_GitHub\casino-bot\src"
 
 
@@ -39,6 +39,8 @@ function Symlink-Files {
     $file = Read-Host "What file do you want to add?"
     $fromFile = "$casinofiles\$file"
     $toFile = "$localFiles\$file"
+    Write-Host $fromFile
+    Write-Host $toFile
     if([System.IO.File]::Exists($fromFile)) {
         Move-Files $fromFile $toFile -Confirm
     } else {
