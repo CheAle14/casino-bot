@@ -1,3 +1,9 @@
+# Archived
+Full source code is available at https://github.com/cheale14/bot-source-code
+
+- - -
+
+
 ## What is this?
 This repository contains two things:
 * *Some* source code for the FourAces#7039 bot.
